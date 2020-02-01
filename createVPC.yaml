@@ -1,0 +1,7 @@
+Resources:
+  mandala:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 192.168.40.0/24     # required
+      EnableDnsHostnames: True     # optional
+      EnableDnsSupport: False     # optional
