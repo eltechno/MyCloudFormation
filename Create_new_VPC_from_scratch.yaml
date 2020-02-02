@@ -52,9 +52,16 @@ Resources:
           Value: !Ref EnvironmentName #call the paremeter EnvironmentName
 
 #Internet Gateway creation
-  internetgateway:
+  Internetgateway:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:                # optional, list of Tag
         - Key: Name
           Value: !Ref EnvironmentName
+
+ #attch the new internet gateway to the VPC
+  InternetgatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref Internetgateway   #call the IG created
+      VpcId: !Ref VPC     # call to the VPC resource
