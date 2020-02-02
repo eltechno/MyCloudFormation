@@ -4,23 +4,50 @@ Description: |
   the public subnets, and a NAT for the private networks.
 
 Parameters:
+#define the name for the VPC
   EnvironmentName: # enviroment name
     Description: An enviroment  name that is prefixed to resource names
     Type: String
 
+#CIDR subnet to use with the VPC
   VpcCIDR: #define the private network to use
     Description: Please enter the IP range (CIDR notation) for this VPC
     Type: String
-    Default: 19.168.40.0/24
+    Default: 10.192.0.0/16
+#define the first public subnet
+  PublicSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
+    Type: String
+    Default: 10.192.10.0/24
 
+#define the second public subnet
+  PublicSubnet2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
+    Type: String
+    Default: 10.192.11.0/24
+
+#define the first private subnet
+  PrivateSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+    Type: String
+    Default: 10.192.20.0/24
+
+#define the second private subnet
+  PrivateSubnet2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
+    Type: String
+    Default: 10.192.21.0/24
+
+#defining resources
 Resources:
+  #VPC creation
   VPC:
     Type: AWS::EC2::VPC
     Properties:
-      CidrBlock: !Ref VpcCIDR
+      CidrBlock: !Ref VpcCIDR #call the parameter VpcCIDR
       EnableDnsSupport: true
       EnableDnsHostnames: true
       Tags:
         - Key: Name
-          Value: !Ref EnvironmentName
+          Value: !Ref EnvironmentName #call the paremeter EnvironmentName
 #this is another update
