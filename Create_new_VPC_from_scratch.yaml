@@ -65,3 +65,4 @@ Resources:
     Properties:
       InternetGatewayId: !Ref Internetgateway   #call the IG created
       VpcId: !Ref VPC     # call to the VPC resource
+      #VpnGatewayId: String     # for vpngateway
