@@ -14,6 +14,8 @@ Parameters:
     Description: Please enter the IP range (CIDR notation) for this VPC
     Type: String
     Default: 10.192.0.0/16
+
+
 #define the first public subnet
   PublicSubnet1CIDR:
     Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
@@ -66,3 +68,14 @@ Resources:
       InternetGatewayId: !Ref Internetgateway   #call the IG created
       VpcId: !Ref VPC     # call to the VPC resource
       #VpnGatewayId: String     # for vpngateway
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]   # optional
+      CidrBlock: !Ref PublicSubnet1CIDR     # required
+      MapPublicIpOnLaunch: True     # optional
+      Tags:                # optional, list of Tag
+        - Key: Name     # required
+          Value: !Sub ${EnvironmentName} Public Subnet (AZ1)
