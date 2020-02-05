@@ -1,0 +1,288 @@
+Description: |
+  This is a template with some parameters to create a new vpc using
+  2 public subnets and 2 private subnets, one internet gateway for
+  the public subnets, and a NAT for the private networks.
+
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+    - Label:
+        default: 'VPC Parameters'
+      Parameters:
+      - ClassB
+Parameters:
+  ClassB:
+    Description: 'Class B of VPC (10.XXX.0.0/16)'
+    Type: Number
+    Default: 0
+    ConstraintDescription: 'Must be in the range [0-255]'
+    MinValue: 0
+    MaxValue: 255
+
+#define the name for the VPC
+  EnvironmentName: # enviroment name
+    Description: An enviroment  name that is prefixed to resource names
+    Type: String
+
+#CIDR subnet to use with the VPC
+#  VpcCIDR: #define the private network to use
+#    Description: Please enter the IP range (CIDR notation) for this VPC
+#    Type: String
+#    Default: 10.192.0.0/16
+
+
+#define the first public subnet
+#  PublicSubnet1CIDR:
+#    Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
+#    Type: String
+#    Default: 10.192.10.0/24
+
+#define the second public subnet
+#  PublicSubnet2CIDR:
+#    Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
+#    Type: String
+#    Default: 10.192.11.0/24
+
+#define the first private subnet
+#  PrivateSubnet1CIDR:
+#    Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+#    Type: String
+#    Default: 10.192.20.0/24
+
+#define the second private subnet
+#  PrivateSubnet2CIDR:
+#    Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
+#    Type: String
+#    Default: 10.192.21.0/24
+
+#defining resources
+Resources:
+  #VPC creation
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Sub '10.${ClassB}.0.0/16' #call the parameter VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Ref EnvironmentName #call the paremeter EnvironmentName
+
+#Internet Gateway creation
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:                # optional, list of Tag
+        - Key: Name
+          Value: !Ref EnvironmentName
+
+ #attch the new internet gateway to the VPC
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway   #call the IG created
+      VpcId: !Ref VPC     # call to the VPC resource
+      #VpnGatewayId: String     # for vpngateway
+
+#first subnet public
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      #from all the zones gets the first
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Sub '10.${ClassB}.0.0/20'    # required
+      MapPublicIpOnLaunch: True     # optional
+      Tags:                # optional, list of Tag
+        - Key: Name     # required
+          Value: !Sub ${EnvironmentName} Public Subnet (AZ0)
+
+#second subnet public
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 2, !GetAZs '' ]     # optional
+      CidrBlock: !Sub '10.${ClassB}.16.0/20'    # required
+      MapPublicIpOnLaunch: True     # optional
+      Tags:                # optional, list of Tag
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Public Subnet (AZ2)
+
+#first private subnet
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]     # optional
+      CidrBlock: !Sub '10.${ClassB}.32.0/20'    # required
+      MapPublicIpOnLaunch: False     # optional
+      Tags:                # optional, list of Tag
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Subnet (AZ1)
+
+#Second private subnet
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 3, !GetAZs '' ]     # optional
+      CidrBlock: !Sub '10.${ClassB}.48.0/20'     # required
+      MapPublicIpOnLaunch: False     # optional
+      Tags:                # optional, list of Tag
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Subnet (AZ3)
+
+##################################################
+#assing 1st public ip for the 1st NAT
+  NatGateway1EIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+#assing 2nd public ip for the 2nd NAT
+  NatGateway2EIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+##################################################
+  NatGateway1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGateway1EIP.AllocationId
+      SubnetId: !Ref PublicSubnet1
+      Tags:                # optional, list of Tag
+        - Key: Name     # required
+          Value: !Sub ${EnvironmentName} NatGateway (1)
+
+  NatGateway2:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGateway2EIP.AllocationId
+      #Getatt retreive the atribute already created
+      SubnetId: !Ref PublicSubnet2
+      Tags:                # optional, list of Tag
+        - Key: Name     # required
+          Value: !Sub ${EnvironmentName} NatGateway (2)
+
+#############################################
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Public Routes
+
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet2
+################################################
+
+  PrivateRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Routes (AZ1)
+
+  DefaultPrivateRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway1
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      SubnetId: !Ref PrivateSubnet1
+################################################
+
+  PrivateRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Routes (AZ2)
+
+  DefaultPrivateRoute2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway2
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      SubnetId: !Ref PrivateSubnet2
+##############################################
+
+  NoIngressSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: "no-ingress-sg"
+      GroupDescription: "Security group with no ingress rule"
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} default securityGP
+#############################################
+
+Outputs:
+  VPC:
+    Description: A reference to the created VPC
+    Value: !Ref VPC
+
+  PublicSubnets:
+    Description: A list of the public subnets
+    Value: !Join [ ",", [ !Ref PublicSubnet1, !Ref PublicSubnet2 ]]
+
+  PrivateSubnets:
+    Description: A list of the private subnets
+    Value: !Join [ ",", [ !Ref PrivateSubnet1, !Ref PrivateSubnet2 ]]
+
+  PublicSubnet1:
+    Description: A reference to the public subnet in the 1st Availability Zone
+    Value: !Ref PublicSubnet1
+
+  PublicSubnet2:
+    Description: A reference to the public subnet in the 2nd Availability Zone
+    Value: !Ref PublicSubnet2
+
+  PrivateSubnet1:
+    Description: A reference to the private subnet in the 1st Availability Zone
+    Value: !Ref PrivateSubnet1
+
+  PrivateSubnet2:
+    Description: A reference to the private subnet in the 2nd Availability Zone
+    Value: !Ref PrivateSubnet2
+
+  NoIngressSecurityGroup:
+    Description: Security group with no ingress rule
+    Value: !Ref NoIngressSecurityGroup
+#PWBv2sWB4yxqZ2020
