@@ -3,11 +3,28 @@ Description: |
   2 public subnets and 2 private subnets, one internet gateway for
   the public subnets, and a NAT for the private networks.
 
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+    - Label:
+        default: 'VPC Parameters'
+      Parameters:
+      - ClassB
+
 Parameters:
 #define the name for the VPC
   EnvironmentName: # enviroment name
     Description: An enviroment  name that is prefixed to resource names
     Type: String
+
+  ClassB:
+    Description: 'Class B of VPC (10.XXX.0.0/16)'
+    Type: Number
+    Default: 0
+    ConstraintDescription: 'Must be in the range [0-255]'
+    MinValue: 0
+    MaxValue: 255
+
 
 #CIDR subnet to use with the VPC
   VpcCIDR: #define the private network to use
